@@ -27,7 +27,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
-	"net/http"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -513,7 +512,7 @@ type Subscription struct {
 type Msg struct {
 	Subject string
 	Reply   string
-	Header  http.Header
+	Header  Header
 	Data    []byte
 	Sub     *Subscription
 	next    *Msg
@@ -2364,7 +2363,7 @@ func (nc *Conn) processMsg(data []byte) {
 	copy(msgPayload, data)
 
 	// Check if we have headers encoded here.
-	var h http.Header
+	var h Header
 	var err error
 
 	if nc.ps.ma.hdr > 0 {
@@ -2731,7 +2730,7 @@ func (nc *Conn) Publish(subj string, data []byte) error {
 func NewMsg(subject string) *Msg {
 	return &Msg{
 		Subject: subject,
-		Header:  make(http.Header),
+		Header:  make(Header),
 	}
 }
 
@@ -2744,7 +2743,7 @@ const (
 )
 
 // decodeHeadersMsg will decode and headers.
-func decodeHeadersMsg(data []byte) (http.Header, error) {
+func decodeHeadersMsg(data []byte) (Header, error) {
 	tp := textproto.NewReader(bufio.NewReader(bytes.NewReader(data)))
 	l, err := tp.ReadLine()
 	if err != nil || len(l) < hdrPreEnd || l[:hdrPreEnd] != hdrLine[:hdrPreEnd] {
@@ -2758,7 +2757,7 @@ func decodeHeadersMsg(data []byte) (http.Header, error) {
 	if len(l) > hdrPreEnd {
 		mh.Add(statusHdr, strings.TrimLeft(l[hdrPreEnd:], " "))
 	}
-	return http.Header(mh), nil
+	return Header(mh), nil
 }
 
 // PublishMsg publishes the Msg structure, which includes the
