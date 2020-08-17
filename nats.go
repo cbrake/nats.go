@@ -1523,6 +1523,7 @@ func (nc *Conn) setup() {
 
 // Process a connected connection and initialize properly.
 func (nc *Conn) processConnectInit() error {
+	fmt.Println("CLIFF: processConnectInit")
 
 	// Set our deadline for the whole connect process
 	nc.conn.SetDeadline(time.Now().Add(nc.Opts.Timeout))
@@ -1540,6 +1541,7 @@ func (nc *Conn) processConnectInit() error {
 	// Send the CONNECT protocol along with the initial PING protocol.
 	// Wait for the PONG response (or any error that we get from the server).
 	err = nc.sendConnect()
+	fmt.Println("CLIFF: sendConnect returned: ", err)
 	if err != nil {
 		return err
 	}
@@ -1566,6 +1568,7 @@ func (nc *Conn) processConnectInit() error {
 
 // Main connect function. Will connect to the nats-server
 func (nc *Conn) connect() error {
+	fmt.Println("CLIFF: connect")
 	var returnedErr error
 
 	// Create actual socket connection
@@ -1584,6 +1587,7 @@ func (nc *Conn) connect() error {
 			nc.setup()
 
 			err = nc.processConnectInit()
+			fmt.Println("CLIFF: processConnectInit returned: ", err)
 
 			if err == nil {
 				nc.current.didConnect = true
@@ -1594,6 +1598,7 @@ func (nc *Conn) connect() error {
 			} else {
 				returnedErr = err
 				nc.mu.Unlock()
+				fmt.Println("CLIFF: 1")
 				nc.close(DISCONNECTED, false, err)
 				nc.mu.Lock()
 				nc.current = nil
@@ -1925,6 +1930,7 @@ func (nc *Conn) stopPingTimer() {
 // Try to reconnect using the option parameters.
 // This function assumes we are allowed to reconnect.
 func (nc *Conn) doReconnect(err error) {
+	fmt.Println("CLIFF: doReconnect")
 	// We want to make sure we have the other watchers shutdown properly
 	// here before we proceed past this point.
 	nc.waitForExits()
@@ -2092,7 +2098,7 @@ func (nc *Conn) doReconnect(err error) {
 
 		// If we are here with a retry on failed connect, indicate that the
 		// initial connect is now complete.
-		nc.initc = false
+		nc.initc = true
 
 		// Queue up the reconnect callback.
 		if nc.Opts.ReconnectedCB != nil {
@@ -2113,6 +2119,7 @@ func (nc *Conn) doReconnect(err error) {
 		nc.err = ErrNoServers
 	}
 	nc.mu.Unlock()
+	fmt.Println("CLIFF: 2")
 	nc.close(CLOSED, true, nil)
 }
 
@@ -2148,6 +2155,7 @@ func (nc *Conn) processOpErr(err error) {
 	nc.status = DISCONNECTED
 	nc.err = err
 	nc.mu.Unlock()
+	fmt.Println("CLIFF: 3")
 	nc.close(CLOSED, true, nil)
 }
 
@@ -2477,7 +2485,8 @@ func (nc *Conn) processAuthError(err error) bool {
 	// We should give up if we tried twice on this server and got the
 	// same error.
 	if nc.current.lastErr == err {
-		nc.ar = true
+		// CLIFF: don't give up connecting -- needed for cellular systems
+		//nc.ar = true
 	} else {
 		nc.current.lastErr = err
 	}
@@ -2692,6 +2701,7 @@ func (nc *Conn) processErr(ie string) {
 	} else if authErr := checkAuthError(e); authErr != nil {
 		nc.mu.Lock()
 		close = nc.processAuthError(authErr)
+		nc.processAuthError(authErr)
 		nc.mu.Unlock()
 	} else {
 		close = true
@@ -2700,6 +2710,9 @@ func (nc *Conn) processErr(ie string) {
 		nc.mu.Unlock()
 	}
 	if close {
+		// don't close if we have an auth error -- this does not work well
+		// with cellular systems
+		fmt.Println("CLIFF: 10")
 		nc.close(CLOSED, true, nil)
 	}
 }
@@ -3981,6 +3994,7 @@ func (nc *Conn) clearPendingRequestCalls() {
 // will be triggered. The lock should not be held entering this
 // function. This function will handle the locking manually.
 func (nc *Conn) close(status Status, doCBs bool, err error) {
+	fmt.Println("CLIFF: close()")
 	nc.mu.Lock()
 	if nc.isClosed() {
 		nc.status = status
@@ -4072,6 +4086,7 @@ func (nc *Conn) close(status Status, doCBs bool, err error) {
 // Close will close the connection to the server. This call will release
 // all blocking calls, such as Flush() and NextMsg()
 func (nc *Conn) Close() {
+	fmt.Println("CLIFF: Close()")
 	if nc != nil {
 		nc.close(CLOSED, !nc.Opts.NoCallbacksAfterClientClose, nil)
 	}
@@ -4112,6 +4127,7 @@ func (nc *Conn) drainConnection() {
 	if nc.isConnecting() || nc.isReconnecting() {
 		nc.mu.Unlock()
 		// Move to closed state.
+		fmt.Println("CLIFF: 4")
 		nc.close(CLOSED, true, nil)
 		return
 	}
@@ -4165,11 +4181,13 @@ func (nc *Conn) drainConnection() {
 	err := nc.FlushTimeout(5 * time.Second)
 	if err != nil {
 		pushErr(err)
+		fmt.Println("CLIFF: 6")
 		nc.close(CLOSED, true, nil)
 		return
 	}
 
 	// Move to closed state.
+	fmt.Println("CLIFF: 7")
 	nc.close(CLOSED, true, nil)
 }
 
@@ -4186,6 +4204,7 @@ func (nc *Conn) Drain() error {
 	}
 	if nc.isConnecting() || nc.isReconnecting() {
 		nc.mu.Unlock()
+		fmt.Println("CLIFF: 8")
 		nc.close(CLOSED, true, nil)
 		return ErrConnectionReconnecting
 	}
