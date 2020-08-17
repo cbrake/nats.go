@@ -2480,11 +2480,15 @@ func (nc *Conn) processAuthError(err error) bool {
 	}
 	// We should give up if we tried twice on this server and got the
 	// same error.
-	if nc.current.lastErr == err {
-		nc.ar = true
-	} else {
-		nc.current.lastErr = err
-	}
+	// CLIFF: don't ever give up due to auth errors
+	/*
+		if nc.current.lastErr == err {
+			nc.ar = true
+		} else {
+			nc.current.lastErr = err
+		}
+	*/
+	nc.current.lastErr = err
 	return nc.ar
 }
 
