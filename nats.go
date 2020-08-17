@@ -1188,6 +1188,7 @@ func (nc *Conn) currentServer() (int, *srv) {
 // as number of reconnect attempts under MaxReconnect.
 func (nc *Conn) selectNextServer() (*srv, error) {
 	i, s := nc.currentServer()
+	fmt.Println("CLIFF: currentServer returned: ", i, s)
 	if i < 0 {
 		return nil, ErrNoServers
 	}
@@ -1201,6 +1202,7 @@ func (nc *Conn) selectNextServer() (*srv, error) {
 		nc.srvPool = sp[0 : num-1]
 	}
 	if len(nc.srvPool) <= 0 {
+		fmt.Println("CLIFF: len(nc.srvPool): ", len(nc.srvPool))
 		nc.current = nil
 		return nil, ErrNoServers
 	}
@@ -1582,6 +1584,7 @@ func (nc *Conn) connect() error {
 		nc.current = nc.srvPool[i]
 
 		if err := nc.createConn(); err == nil {
+			fmt.Println("CLIFF: createConn returned: ", err)
 			// This was moved out of processConnectInit() because
 			// that function is now invoked from doReconnect() too.
 			nc.setup()
@@ -1601,12 +1604,14 @@ func (nc *Conn) connect() error {
 				fmt.Println("CLIFF: 1")
 				nc.close(DISCONNECTED, false, err)
 				nc.mu.Lock()
-				nc.current = nil
+				//nc.current = nil
 			}
 		} else {
+			fmt.Println("CLIFF: createConn returned err")
 			// Cancel out default connection refused, will trigger the
 			// No servers error conditional
 			if strings.Contains(err.Error(), "connection refused") {
+				fmt.Println("CLIFF: connection refused")
 				returnedErr = nil
 			}
 		}
@@ -1982,8 +1987,11 @@ func (nc *Conn) doReconnect(err error) {
 		}
 	}
 
+	fmt.Println("CLIFF: len(nc.srvPool): ", len(nc.srvPool))
+
 	for i := 0; len(nc.srvPool) > 0; {
 		cur, err := nc.selectNextServer()
+		fmt.Println("CLIFF: selectNextServer returned: ", err)
 		if err != nil {
 			nc.err = err
 			break
@@ -2028,6 +2036,7 @@ func (nc *Conn) doReconnect(err error) {
 
 		// Check if we have been closed first.
 		if nc.isClosed() {
+			fmt.Println("CLIFF: nc.isClosed, break reconnect loop")
 			break
 		}
 
@@ -2036,6 +2045,7 @@ func (nc *Conn) doReconnect(err error) {
 
 		// Try to create a new connection
 		err = nc.createConn()
+		fmt.Println("CLIFF: nc.createConn returned: ", err)
 
 		// Not yet connected, retry...
 		// Continue to hold the lock
@@ -2049,6 +2059,8 @@ func (nc *Conn) doReconnect(err error) {
 
 		// Process connect logic
 		if nc.err = nc.processConnectInit(); nc.err != nil {
+			fmt.Println("CLIFF: processConnectInit returned: ", err)
+			fmt.Println("CLIFF: nc.ar: ", nc.ar)
 			// Check if we should abort reconnect. If so, break out
 			// of the loop and connection will be closed.
 			if nc.ar {
