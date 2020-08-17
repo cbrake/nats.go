@@ -1596,7 +1596,7 @@ func (nc *Conn) connect() error {
 				nc.mu.Unlock()
 				nc.close(DISCONNECTED, false, err)
 				nc.mu.Lock()
-				nc.current = nil
+				//nc.current = nil
 			}
 		} else {
 			// Cancel out default connection refused, will trigger the
